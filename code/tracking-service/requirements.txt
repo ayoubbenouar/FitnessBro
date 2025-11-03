@@ -1,0 +1,18 @@
+# --- Core Framework ---
+fastapi==0.111.0
+uvicorn==0.30.1
+
+# --- Database ---
+SQLAlchemy==2.0.34
+
+# --- Data validation ---
+pydantic==2.8.2
+
+# --- JWT Auth (même lib que dans auth-service) ---
+python-jose==3.3.0
+
+# --- CORS Middleware ---
+starlette==0.37.2
+
+# --- Utils ---
+typing-extensions

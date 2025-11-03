@@ -1,9 +1,19 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from .db import Base, engine, get_db
 from . import models, schemas
 import re
+import httpx
+from jose import jwt, JWTError
 from typing import Dict, Any
+
+# ----------------------------
+# Configuration de sécurité JWT
+# ----------------------------
+JWT_SECRET = "change-me"   # même clé que dans auth-service/security.py
+JWT_ALG = "HS256"
+security = HTTPBearer()
 
 # ----------------------------
 # Initialisation de l'application
@@ -62,7 +72,7 @@ def estimate_calories(text: str) -> float:
     return round(total, 2)
 
 # ----------------------------
-# Création du programme complet
+# Routes
 # ----------------------------
 @app.get("/program/health")
 def health():
@@ -109,7 +119,7 @@ def create_program(payload: schemas.ProgramCreate, db: Session = Depends(get_db)
 
         days_with_details.append({
             "day": day_data.day,
-            "meals": meal_details,      # repas → aliments → kcal
+            "meals": meal_details,
             "workout": workout,
             "daily_calories": daily_total
         })
@@ -137,3 +147,60 @@ def get_program(program_id: int, db: Session = Depends(get_db)):
     if not program:
         raise HTTPException(status_code=404, detail="Programme introuvable")
     return program
+
+
+# -------------------------------------------------------
+# 🔹 Récupérer les programmes d’un client (sécurisé + inter-service)
+# -------------------------------------------------------
+@app.get("/program/client/{client_id}", response_model=list[schemas.ProgramOut])
+def get_programs_by_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Retourne tous les programmes assignés à un client.
+    Vérifie d'abord que le token JWT correspond bien à ce client.
+    Puis récupère l'email du coach via le Auth-Service.
+    """
+
+    # 🔐 Vérification du JWT
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALG])
+        token_user_id = int(payload["sub"])
+        if token_user_id != client_id:
+            raise HTTPException(status_code=403, detail="Accès refusé : client non autorisé")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token invalide ou expiré")
+
+    # 🔎 Recherche des programmes du client
+    programs = db.query(models.Program).filter(models.Program.client_id == client_id).all()
+    if not programs:
+        raise HTTPException(status_code=404, detail="Aucun programme trouvé pour ce client.")
+
+    # 🔄 Communication avec Auth-Service pour récupérer l'email du coach
+    for p in programs:
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                res = client.get(f"http://127.0.0.1:8001/auth/user/{p.coach_id}")
+                if res.status_code == status.HTTP_200_OK:
+                    data = res.json()
+                    p.coach_email = data.get("email")
+                else:
+                    p.coach_email = f"coach{p.coach_id}@unknown"
+        except Exception as e:
+            print("Erreur inter-service (auth):", e)
+            p.coach_email = f"coach{p.coach_id}@unknown"
+
+    return programs
+
+from .security import verify_token
+
+@app.get("/program/client/{client_id}", response_model=list[schemas.ProgramOut])
+def get_programs_by_client(client_id: int, db: Session = Depends(get_db), user=Depends(verify_token)):
+    if user["user_id"] != client_id:
+        raise HTTPException(status_code=403, detail="Accès interdit à ce programme.")
+    programs = db.query(models.Program).filter(models.Program.client_id == client_id).all()
+    if not programs:
+        raise HTTPException(status_code=404, detail="Aucun programme trouvé pour ce client.")
+    return programs

@@ -44,5 +44,8 @@ class ProgramOut(BaseModel):
     days: List[ProgramDay]
     calories: float
 
+    # ✅ Champ supplémentaire pour afficher l’auteur côté client
+    coach_email: Optional[str] = None
+
     class Config:
         from_attributes = True

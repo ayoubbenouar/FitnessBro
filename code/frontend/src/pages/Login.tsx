@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import {jwtDecode} from "jwt-decode"; // 👈 installer avec `npm install jwt-decode`
+
+interface DecodedToken {
+  sub: string;
+  role: string;
+  exp: number;
+}
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -22,8 +29,17 @@ export default function Login() {
 
       const data = await res.json();
       localStorage.setItem("token", data.access_token);
-      navigate("/");
+
+      // ✅ Décoder le token pour savoir le rôle
+      const decoded: DecodedToken = jwtDecode(data.access_token);
+
+      // ✅ Redirection selon le rôle
+      if (decoded.role === "coach") navigate("/coach");
+      else if (decoded.role === "client") navigate("/client");
+      else navigate("/login");
+
     } catch (err) {
+      console.error(err);
       setError("Email ou mot de passe invalide.");
     }
   }
@@ -31,7 +47,10 @@ export default function Login() {
   return (
     <div style={{ maxWidth: 400, margin: "80px auto", textAlign: "center" }}>
       <h1>Connexion</h1>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: 10 }}
+      >
         <input
           type="email"
           placeholder="Email"

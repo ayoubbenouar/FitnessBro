@@ -1,0 +1,16 @@
+# Fichiers Python
+__pycache__/
+*.pyc
+
+# Bases de données locales
+*.db
+
+# Fichiers d’environnement
+.env
+
+# Node.js
+node_modules/
+
+# Build / dist
+dist/
+build/

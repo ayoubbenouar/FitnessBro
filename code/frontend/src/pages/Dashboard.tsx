@@ -1,5 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
+
+interface DecodedToken {
+  sub: string;
+  role: string;
+  exp: number;
+}
+
+interface Client {
+  id: number;
+  email: string;
+  role: string;
+}
 
 interface Food {
   name: string;
@@ -37,14 +50,21 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  const [coachId, setCoachId] = useState(1);
-  const [clientId, setClientId] = useState(2);
+  // --- Décoder le token JWT ---
+  const decoded: DecodedToken | null = token ? jwtDecode(token) : null;
+  const coachId = decoded ? Number(decoded.sub) : null;
+
+  // --- Client Selection ---
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientId, setClientId] = useState<number | null>(null);
+
+  // --- Program State ---
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-
   const [createdProgram, setCreatedProgram] = useState<Program | null>(null);
 
+  // --- Days Template ---
   const [days, setDays] = useState<DayForm[]>([
     { day: "Lundi", breakfast: "", lunch: "", dinner: "", workout: "" },
     { day: "Mardi", breakfast: "", lunch: "", dinner: "", workout: "" },
@@ -55,21 +75,50 @@ export default function Dashboard() {
     { day: "Dimanche", breakfast: "", lunch: "", dinner: "", workout: "" },
   ]);
 
+  // 🔹 Charger la liste des clients depuis l’API Auth
+  useEffect(() => {
+    async function fetchClients() {
+      try {
+        const res = await fetch("http://127.0.0.1:8001/auth/clients");
+        if (!res.ok) throw new Error("Erreur de chargement des clients");
+        const data = await res.json();
+        setClients(data);
+      } catch (err) {
+        console.error(err);
+        setMessage("❌ Impossible de charger la liste des clients");
+      }
+    }
+    fetchClients();
+  }, []);
+
+  // 🔹 Déconnexion
   function logout() {
     localStorage.removeItem("token");
     navigate("/login");
   }
 
+  // 🔹 Modification des repas
   function handleDayChange(index: number, field: keyof DayForm, value: string) {
     const newDays = [...days];
     newDays[index][field] = value;
     setDays(newDays);
   }
 
+  // 🔹 Création du programme
   async function createProgram(e: React.FormEvent) {
     e.preventDefault();
     setMessage(null);
     setCreatedProgram(null);
+
+    if (!clientId) {
+      setMessage("⚠️ Sélectionnez un client avant de créer le programme.");
+      return;
+    }
+
+    if (!coachId) {
+      setMessage("⚠️ Impossible de déterminer l'identité du coach (token invalide).");
+      return;
+    }
 
     const payload = {
       coach_id: coachId,
@@ -97,7 +146,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Erreur serveur");
 
       const data = await res.json();
-      setMessage(`✅ Programme "${data.title}" créé avec succès !`);
+      setMessage(`✅ Programme créé pour ${clients.find(c => c.id === clientId)?.email}`);
       setCreatedProgram(data);
     } catch (err) {
       console.error(err);
@@ -118,7 +167,7 @@ export default function Dashboard() {
         Tableau de bord Coach 🏋️‍♂️
       </h1>
       <p style={{ textAlign: "center", marginBottom: 20 }}>
-        Créez un programme hebdomadaire complet et consultez-le directement
+        Créez un programme hebdomadaire complet et assignez-le à un client.
       </p>
 
       <div style={{ textAlign: "center", marginBottom: 30 }}>
@@ -135,6 +184,34 @@ export default function Dashboard() {
         >
           Se déconnecter
         </button>
+      </div>
+
+      {/* ---- Sélecteur de client ---- */}
+      <div style={{ marginBottom: 20, textAlign: "center" }}>
+        <label>
+          Sélectionner un client :
+          <select
+            style={{
+              marginLeft: 10,
+              padding: "6px 8px",
+              borderRadius: 6,
+              border: "1px solid #ccc",
+            }}
+            value={clientId ?? ""}
+            onChange={(e) => setClientId(Number(e.target.value))}
+          >
+            <option value="">-- Choisir un client --</option>
+            {clients.map((c) => {
+              const displayName = c.email.split("@")[0]; // extrait la partie avant @
+              return (
+                <option key={c.id} value={c.id}>
+                  {displayName}
+                </option>
+              );
+            })}
+
+          </select>
+        </label>
       </div>
 
       {/* ---- FORMULAIRE ---- */}
@@ -220,7 +297,7 @@ export default function Dashboard() {
         <p
           style={{
             marginTop: 20,
-            color: message.includes("succès") ? "limegreen" : "crimson",
+            color: message.includes("✅") ? "limegreen" : "crimson",
           }}
         >
           {message}

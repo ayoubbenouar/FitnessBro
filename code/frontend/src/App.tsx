@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/login";
+import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import ClientDashboard from "./pages/ClientDashboard"; // ✅ si tu l’as
 import type { JSX } from "react";
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -12,13 +13,28 @@ function PrivateRoute({ children }: { children: JSX.Element }) {
 export default function App() {
   return (
     <Routes>
+      {/* Page d’accueil redirige vers /login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+
+      {/* Tableau de bord coach */}
       <Route
-        path="/"
+        path="/coach"
         element={
           <PrivateRoute>
             <Dashboard />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Tableau de bord client */}
+      <Route
+        path="/client"
+        element={
+          <PrivateRoute>
+            <ClientDashboard />
           </PrivateRoute>
         }
       />
