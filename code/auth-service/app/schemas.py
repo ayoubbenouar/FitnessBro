@@ -1,26 +1,36 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
-# Données reçues lors de l'inscription
+# ----------------------------
+# 🔹 Schemas utilisateurs
+# ----------------------------
+class UserBase(BaseModel):
+    email: EmailStr
+    role: str = "client"
+    coach_id: Optional[int] = None
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    role: str = "client"
+    role: str = "client"  # par défaut client
 
-# Données reçues lors du login
+
+class UserOut(UserBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
+# ----------------------------
+# 🔹 Authentification
+# ----------------------------
 class Login(BaseModel):
     email: EmailStr
     password: str
 
-# Données renvoyées après inscription ou lecture
-class UserOut(BaseModel):
-    id: int
-    email: EmailStr
-    role: str
 
-    class Config:
-        from_attributes = True  # Permet de lire depuis un modèle SQLAlchemy
-
-# Token JWT renvoyé après connexion
 class Token(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str

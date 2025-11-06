@@ -1,24 +1,26 @@
-from jose import jwt, JWTError
-from fastapi import HTTPException, Depends
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
 
-# ⚠️ Ces valeurs doivent être identiques à celles du auth-service
-JWT_SECRET = "change-me"
+JWT_SECRET = "change-me"   # même clé que dans auth-service/security.py
 JWT_ALG = "HS256"
+security = HTTPBearer()
 
-auth_scheme = HTTPBearer()
-
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme)):
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
-    Vérifie le token JWT envoyé dans les en-têtes Authorization.
-    Retourne le payload s'il est valide.
+    Vérifie et décode le token JWT.
+    Retourne l'ID et le rôle de l'utilisateur.
     """
+    token = credentials.credentials
     try:
-        token = credentials.credentials
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Token invalide : 'sub' manquant")
-        return {"user_id": int(user_id)}
+        user_id = int(payload.get("sub"))
+        role = payload.get("role")
+
+        if user_id is None or role is None:
+            raise HTTPException(status_code=401, detail="Token incomplet ou invalide")
+
+        return {"user_id": user_id, "role": role}
+
     except JWTError:
         raise HTTPException(status_code=401, detail="Token invalide ou expiré")
