@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import ExerciseList from "../../components/ExerciseList";
+
+interface Exercise {
+  name: string;
+  sets: number;
+  reps: number;
+}
 
 interface Program {
   id: number;
@@ -18,6 +25,7 @@ interface DayProgram {
     { foods: { name: string; calories: number }[]; meal_calories: number }
   >;
   workout: string;
+  exercises?: Exercise[];
 }
 
 export default function EditProgram() {
@@ -28,23 +36,20 @@ export default function EditProgram() {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 🔹 Charger le programme à modifier
   useEffect(() => {
     async function fetchProgram() {
       try {
         const res = await fetch(`http://127.0.0.1:8002/program/${id}`);
-        if (!res.ok) throw new Error("Erreur lors du chargement du programme");
+        if (!res.ok) throw new Error("Erreur de chargement du programme");
         const data = await res.json();
         setProgram(data);
-      } catch (err) {
-        console.error(err);
+      } catch {
         setMessage("❌ Erreur lors du chargement du programme.");
       }
     }
     fetchProgram();
   }, [id]);
 
-  // 🔹 Gestion des changements dans le formulaire
   function handleDayChange(
     dayIndex: number,
     field: string,
@@ -68,14 +73,19 @@ export default function EditProgram() {
     setProgram(updated);
   }
 
-  // 🔹 Envoi du programme modifié
+  function handleExercisesChange(dayIndex: number, exercises: Exercise[]) {
+    if (!program) return;
+    const updated = { ...program };
+    updated.days[dayIndex].exercises = exercises;
+    setProgram(updated);
+  }
+
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
     if (!program) return;
     setLoading(true);
     setMessage(null);
 
-    // ✅ Reformater les données pour correspondre au schéma ProgramCreate
     const payload = {
       coach_id: program.coach_id,
       client_id: program.client_id,
@@ -90,10 +100,9 @@ export default function EditProgram() {
           ])
         ),
         workout: d.workout,
+        exercises: d.exercises || [],
       })),
     };
-
-    console.log("➡️ Payload envoyé :", JSON.stringify(payload, null, 2));
 
     try {
       const res = await fetch(`http://127.0.0.1:8002/program/${program.id}`, {
@@ -106,8 +115,7 @@ export default function EditProgram() {
 
       setMessage("✅ Programme mis à jour avec succès !");
       setTimeout(() => navigate("/coach/clients"), 1500);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setMessage("❌ Erreur lors de la mise à jour du programme.");
     } finally {
       setLoading(false);
@@ -171,7 +179,7 @@ export default function EditProgram() {
           </div>
         </div>
 
-        {/* Jours et repas */}
+        {/* Jours + exercices */}
         <div className="grid md:grid-cols-2 gap-6">
           {program.days.map((d, i) => (
             <div key={i} className="bg-gray-50 p-4 rounded-lg shadow">
@@ -204,11 +212,16 @@ export default function EditProgram() {
                   }
                 />
               </div>
+
+              {/* Exercices dynamiques */}
+              <ExerciseList
+                exercises={d.exercises || []}
+                onChange={(list) => handleExercisesChange(i, list)}
+              />
             </div>
           ))}
         </div>
 
-        {/* Bouton de sauvegarde */}
         <button
           type="submit"
           disabled={loading}
@@ -219,7 +232,7 @@ export default function EditProgram() {
           ) : (
             "💾"
           )}
-          {loading ? "Mise à jour en cours..." : "Enregistrer les modifications"}
+          {loading ? "Mise à jour..." : "Enregistrer les modifications"}
         </button>
       </form>
     </div>

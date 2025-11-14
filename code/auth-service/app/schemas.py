@@ -1,8 +1,9 @@
+# app/schemas.py
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 # ----------------------------
-# 🔹 Schemas utilisateurs
+# Base utilisateur
 # ----------------------------
 class UserBase(BaseModel):
     email: EmailStr
@@ -10,12 +11,18 @@ class UserBase(BaseModel):
     coach_id: Optional[int] = None
 
 
+# ----------------------------
+# Création
+# ----------------------------
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    role: str = "client"  # par défaut client
+    role: str = "client"
 
 
+# ----------------------------
+# Sortie
+# ----------------------------
 class UserOut(UserBase):
     id: int
 
@@ -24,7 +31,7 @@ class UserOut(UserBase):
 
 
 # ----------------------------
-# 🔹 Authentification
+# Auth
 # ----------------------------
 class Login(BaseModel):
     email: EmailStr

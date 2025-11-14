@@ -1,3 +1,4 @@
+# app/main.py
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -6,15 +7,18 @@ from .db import Base, engine, get_db
 from . import models, schemas
 from .security import hash_password, verify_password, create_access_token
 
-# -------------------------------------------------
-# 🔹 Initialisation de l'application
-# -------------------------------------------------
+# ==========================================================
+# 🚀 Initialisation de l'application
+# ==========================================================
 app = FastAPI(title="FitnessBro Auth Service")
 
-# Configuration CORS
+# CORS pour le frontend React
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://127.0.0.1:5173"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,40 +26,39 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
-# -------------------------------------------------
-# 🔹 Vérification du service
-# -------------------------------------------------
+
+# ==========================================================
+# 🩺 Health Check
+# ==========================================================
 @app.get("/auth/health")
 def health():
     return {"status": "ok", "service": "auth-service"}
 
 
-# -------------------------------------------------
-# 🔹 Inscription coach (page signup)
-# -------------------------------------------------
+# ==========================================================
+# 📝 Inscription Coach (seulement coach)
+# ==========================================================
 @app.post("/auth/register", response_model=schemas.UserOut, status_code=201)
 def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     """
-    Permet l'inscription d'un coach uniquement.
+    Inscription réservée aux COACHS.
     """
     existing = db.execute(
         select(models.User).where(models.User.email == payload.email)
     ).scalar_one_or_none()
 
     if existing:
-        raise HTTPException(status_code=409, detail="Email déjà utilisé")
+        raise HTTPException(409, "Email déjà utilisé")
 
-    # 🚫 Seuls les rôles "coach" sont autorisés ici
-    if payload.role not in ["coach"]:
+    if payload.role != "coach":
         raise HTTPException(
-            status_code=400,
-            detail="Création de compte réservée aux coachs uniquement",
+            400, "Seuls les coachs peuvent créer un compte via cette route."
         )
 
     user = models.User(
         email=payload.email,
         hashed_password=hash_password(payload.password),
-        role=payload.role,
+        role="coach",
     )
 
     db.add(user)
@@ -64,86 +67,84 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     return user
 
 
-# -------------------------------------------------
-# 🔹 Connexion (coach + client)
-# -------------------------------------------------
+# ==========================================================
+# 🔐 Connexion (coach + client)
+# ==========================================================
 @app.post("/auth/login", response_model=schemas.Token)
 def login(payload: schemas.Login, db: Session = Depends(get_db)):
-    """
-    Authentifie un coach ou un client et retourne un token JWT.
-    """
     user = (
         db.execute(select(models.User).where(models.User.email == payload.email))
         .scalar_one_or_none()
     )
 
     if not user or not verify_password(payload.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Identifiants invalides")
+        raise HTTPException(401, "Identifiants invalides")
 
     token = create_access_token(sub=str(user.id), role=user.role)
     return {"access_token": token, "token_type": "bearer"}
 
 
-# -------------------------------------------------
-# 🔹 Création d’un client par un coach
-# -------------------------------------------------
+# ==========================================================
+# ➕ Création d’un client par un coach
+# ==========================================================
 @app.post("/auth/clients/{coach_id}/add", response_model=schemas.UserOut)
-def create_client_for_coach(coach_id: int, payload: schemas.UserCreate, db: Session = Depends(get_db)):
+def create_client_for_coach(
+    coach_id: int,
+    payload: schemas.UserCreate,
+    db: Session = Depends(get_db),
+):
     """
-    Permet à un coach de créer un client lié à son propre ID.
+    Un coach peut créer un client qui lui est lié.
     """
-    existing = db.query(models.User).filter(models.User.email == payload.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email déjà utilisé")
+    # Vérifie si email déjà existant
+    existing = db.query(models.User).filter(
+        models.User.email == payload.email
+    ).first()
 
-    new_client = models.User(
+    if existing:
+        raise HTTPException(400, "Email déjà utilisé")
+
+    client = models.User(
         email=payload.email,
         hashed_password=hash_password(payload.password),
         role="client",
         coach_id=coach_id,
     )
 
-    db.add(new_client)
+    db.add(client)
     db.commit()
-    db.refresh(new_client)
-    return new_client
+    db.refresh(client)
+    return client
 
 
-# -------------------------------------------------
-# 🔹 Liste des clients d’un coach spécifique
-# -------------------------------------------------
+# ==========================================================
+# 👥 Liste des clients d’un coach
+# ==========================================================
 @app.get("/auth/clients/{coach_id}", response_model=list[schemas.UserOut])
 def list_clients_for_coach(coach_id: int, db: Session = Depends(get_db)):
-    """
-    Retourne uniquement les clients appartenant au coach connecté.
-    """
-    clients = db.query(models.User).filter(models.User.coach_id == coach_id).all()
+    clients = db.query(models.User).filter(
+        models.User.coach_id == coach_id
+    ).all()
     return clients
 
 
-# -------------------------------------------------
-# 🔹 Liste de tous les clients (debug ou admin)
-# -------------------------------------------------
+# ==========================================================
+# 👥 Liste de tous les clients (admin/debug)
+# ==========================================================
 @app.get("/auth/clients", response_model=list[schemas.UserOut])
 def list_all_clients(db: Session = Depends(get_db)):
-    """
-    Retourne la liste de tous les utilisateurs ayant le rôle 'client'.
-    """
     clients = db.query(models.User).filter(models.User.role == "client").all()
     return clients
 
 
-# -------------------------------------------------
-# 🔹 Récupération d’un utilisateur par son ID
-# -------------------------------------------------
+# ==========================================================
+# 🔍 Récupérer un utilisateur par ID
+# ==========================================================
 @app.get("/auth/user/{user_id}")
 def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
-    """
-    Retourne les infos d’un utilisateur selon son ID.
-    """
     user = db.get(models.User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+        raise HTTPException(404, "Utilisateur introuvable")
 
     return {
         "id": user.id,
@@ -151,3 +152,21 @@ def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
         "role": user.role,
         "coach_id": user.coach_id,
     }
+
+
+# ==========================================================
+# 🗑️ Suppression d’un client
+# ==========================================================
+@app.delete("/auth/clients/{client_id}", status_code=204)
+def delete_client(client_id: int, db: Session = Depends(get_db)):
+    client = db.query(models.User).filter(
+        models.User.id == client_id,
+        models.User.role == "client"
+    ).first()
+
+    if not client:
+        raise HTTPException(404, "Client introuvable")
+
+    db.delete(client)
+    db.commit()
+    return {"message": "Client supprimé avec succès"}

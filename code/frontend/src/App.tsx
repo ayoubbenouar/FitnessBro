@@ -19,6 +19,8 @@ import ClientSummary from "./pages/Client/ClientReport";      // Bilan
 
 // Auth guard
 import ProtectedRoute from "./components/ProtectedRoute";
+import CoachBilan from "./pages/Coach/CoachBilan";
+import ClientReport from "./pages/Client/ClientReport";
 
 export default function App() {
   return (
@@ -39,6 +41,9 @@ export default function App() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<CoachDashboard />} />
         <Route path="clients" element={<ClientList />} />
+        <Route path="/coach/bilan" element={<CoachBilan />} />
+        <Route path="/coach/client/:clientId/report" element={<ClientReport />} />
+
         <Route path="create" element={<CreateProgram />} />
         <Route path="edit/:id" element={<EditProgram />} />
         <Route path="client/:id" element={<ClientProgram />} />

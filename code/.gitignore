@@ -1,16 +1,31 @@
-# Fichiers Python
+# ------------------------
+# Python
+# ------------------------
 __pycache__/
 *.pyc
-
-# Bases de données locales
+*.pyo
+*.pyd
 *.db
 
-# Fichiers d’environnement
+# ------------------------
+# FastAPI / virtualenv
+# ------------------------
+venv/
 .env
+*.env
 
-# Node.js
+# ------------------------
+# Node / React
+# ------------------------
 node_modules/
-
-# Build / dist
 dist/
 build/
+*.log
+
+# ------------------------
+# OS / Éditeurs
+# ------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

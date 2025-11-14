@@ -9,6 +9,7 @@ import {
   X,
   Dumbbell,
   LayoutDashboard,
+  FileBarChart,
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -60,6 +61,9 @@ export default function Sidebar() {
 
             <Link to="/coach/clients" className={linkStyle("/coach/clients")}>
               <Users size={20} /> Liste clients
+            </Link>
+            <Link to="/coach/bilan" className={linkStyle("/coach/bilan")}>
+            <FileBarChart size={20} /> Bilan clients
             </Link>
           </nav>
 

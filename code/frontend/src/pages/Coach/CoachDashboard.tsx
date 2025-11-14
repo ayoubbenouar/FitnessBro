@@ -14,6 +14,12 @@ interface Decoded {
   exp: number;
 }
 
+interface ClientCompliance {
+  client_id: number;
+  email: string;
+  average_compliance: number;
+}
+
 export default function CoachDashboard() {
   const [stats, setStats] = useState<Stat>({
     clients: 0,
@@ -31,41 +37,49 @@ export default function CoachDashboard() {
 
         const decoded = jwtDecode<Decoded>(token);
         const coachId = decoded?.sub;
-
         if (!coachId) throw new Error("Coach ID manquant");
 
-        // 🟦 Charger le nom/email du coach
+        // 🟦 Charger le nom du coach
         const coachRes = await fetch(`http://127.0.0.1:8001/auth/user/${coachId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (coachRes.ok) {
           const coachData = await coachRes.json();
-          if (coachData?.email) {
-            setCoachName(coachData.email.split("@")[0]);
-          }
+          if (coachData?.email) setCoachName(coachData.email.split("@")[0]);
         }
 
-        // 🟩 Charger les stats du coach
-        const [clientsRes, programsRes] = await Promise.all([
+        // 🟩 Charger les clients et programmes
+        const [clientsRes, programsRes, complianceRes] = await Promise.all([
           fetch(`http://127.0.0.1:8001/auth/clients/${coachId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(`http://127.0.0.1:8002/programs/coach/${coachId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch(`http://127.0.0.1:8003/tracking/coach/${coachId}/clients-stats`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
-        if (!clientsRes.ok || !programsRes.ok) {
+        if (!clientsRes.ok || !programsRes.ok || !complianceRes.ok) {
           throw new Error("Erreur de chargement des données");
         }
 
         const clients = await clientsRes.json();
         const programs = await programsRes.json();
+        const complianceData: ClientCompliance[] = await complianceRes.json();
+
+        // 🧮 Calcul du taux de conformité moyen réel
+        const complianceAvg =
+          complianceData.length > 0
+            ? complianceData.reduce((acc, c) => acc + (c.average_compliance || 0), 0) /
+              complianceData.length
+            : 0;
 
         setStats({
           clients: clients.length,
           programs: programs.length,
-          compliance: Math.floor(Math.random() * 41) + 60, // Simulation %
+          compliance: Math.round(complianceAvg),
         });
       } catch (err) {
         console.error("Erreur de chargement :", err);
@@ -116,7 +130,7 @@ export default function CoachDashboard() {
               <p className="text-green-100 text-sm mt-1">Créés par vous</p>
             </div>
 
-            {/* Conformité */}
+            {/* Conformité moyenne */}
             <div className="bg-gradient-to-br from-yellow-400 to-amber-500 text-white rounded-2xl p-6 shadow-md hover:shadow-lg transition">
               <div className="flex justify-between items-center mb-3">
                 <Trophy size={30} />
@@ -125,7 +139,7 @@ export default function CoachDashboard() {
                 </span>
               </div>
               <h2 className="text-4xl font-bold">{stats.compliance}%</h2>
-              <p className="text-yellow-100 text-sm mt-1">Taux des clients</p>
+              <p className="text-yellow-100 text-sm mt-1">Taux de conformité moyen des clients</p>
             </div>
           </div>
 
@@ -160,14 +174,14 @@ export default function CoachDashboard() {
               </div>
 
               <div
-                onClick={() => (window.location.href = "/coach/add-client")}
+                onClick={() => (window.location.href = "/coach/bilan")}
                 className="cursor-pointer bg-white hover:bg-gray-50 border border-gray-200 p-6 rounded-xl shadow-sm hover:shadow-md transition"
               >
                 <h3 className="text-lg font-semibold text-amber-600 mb-2">
-                  🧾 Ajouter un client
+                  🧾 Voir le bilan
                 </h3>
                 <p className="text-gray-500 text-sm">
-                  Créez un compte client lié à votre profil.
+                  Consultez la conformité moyenne de vos clients.
                 </p>
               </div>
             </div>

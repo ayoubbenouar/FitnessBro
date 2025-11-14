@@ -84,7 +84,7 @@ export default function Signup() {
             <input
               type="email"
               className="w-full p-3 mt-1 rounded-lg bg-gray-800 text-white border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="coach@exemple.com"
+              placeholder="nom@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

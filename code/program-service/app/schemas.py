@@ -1,31 +1,56 @@
+# app/schemas.py
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 
-# --- Modèles de base ---
+
+# -------------------------
+# Food / Meals
+# -------------------------
 class Food(BaseModel):
     name: str
     calories: float
 
+
 class MealDetails(BaseModel):
     foods: List[Food]
     meal_calories: float
+
 
 class Meals(BaseModel):
     breakfast: MealDetails
     lunch: MealDetails
     dinner: MealDetails
 
+
+# -------------------------
+# Exercices
+# -------------------------
+class Exercise(BaseModel):
+    name: str
+    sets: int
+    reps: int
+
+
+# -------------------------
+# Program Day (output)
+# -------------------------
 class ProgramDay(BaseModel):
     day: str
     meals: Meals
     workout: str
     daily_calories: float
+    exercises: List[Exercise] = []
 
-# --- Création (input) ---
+
+# -------------------------
+# Program creation (input)
+# -------------------------
 class ProgramCreateDay(BaseModel):
     day: str
-    meals: Dict[str, str]  # ← texte simple envoyé (poulet, riz)
+    meals: Dict[str, str]            # Ex: {"breakfast": "riz, poulet"}
     workout: Optional[str] = "Repos"
+    exercises: List[Exercise] = []   # Nouveau
+
 
 class ProgramCreate(BaseModel):
     coach_id: int
@@ -34,7 +59,10 @@ class ProgramCreate(BaseModel):
     notes: Optional[str] = None
     days: List[ProgramCreateDay]
 
-# --- Sortie (output) ---
+
+# -------------------------
+# Program output
+# -------------------------
 class ProgramOut(BaseModel):
     id: int
     coach_id: int
@@ -44,8 +72,8 @@ class ProgramOut(BaseModel):
     days: List[ProgramDay]
     calories: float
 
-    # ✅ Champ supplémentaire pour afficher l’auteur côté client
+    # pratique pour l’UI
     coach_email: Optional[str] = None
 
     class Config:
-        from_attributes = True
+        from_attributes = True   # Pydantic V1 + V2

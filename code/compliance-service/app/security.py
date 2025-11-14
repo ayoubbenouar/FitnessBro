@@ -3,11 +3,10 @@ from jose import jwt, JWTError
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-JWT_SECRET = "change-me"
+JWT_SECRET = "change-me"   # Même clé que auth-service
 JWT_ALG = "HS256"
 
 auth_scheme = HTTPBearer()
-
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme)):
     try:
@@ -20,7 +19,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token invalide : 'sub' manquant",
+                detail="Token invalide : 'sub' manquant"
             )
 
         return {"user_id": int(user_id), "role": role}
