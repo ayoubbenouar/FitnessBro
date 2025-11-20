@@ -1,29 +1,15 @@
-# app/schemas.py
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
 
-# -------------------------------------------------
-# 🔹 Tracking repas / entraînement
-# -------------------------------------------------
+
+# Suivi repas / workout
 class TrackingBase(BaseModel):
     day: str
     meal_morning_done: Optional[bool] = False
     meal_noon_done: Optional[bool] = False
     meal_evening_done: Optional[bool] = False
     workout_done: Optional[bool] = False
-
-
-class TrackingCreate(TrackingBase):
-    client_id: int
-
-
-class TrackingUpdate(BaseModel):
-    day: str
-    meal_morning_done: Optional[bool] = None
-    meal_noon_done: Optional[bool] = None
-    meal_evening_done: Optional[bool] = None
-    workout_done: Optional[bool] = None
 
 
 class TrackingOut(TrackingBase):
@@ -36,12 +22,10 @@ class TrackingOut(TrackingBase):
         from_attributes = True
 
 
-# -------------------------------------------------
-# 🔵 Tracking des exercices (poids par série)
-# -------------------------------------------------
+# Tracking des exercices
 class ExerciseSetBase(BaseModel):
-    day: str  # "Lundi"
-    date: Optional[date] = None  # 🔥 Pour regrouper par jour réel
+    day: str
+    date: Optional[date] = None  # auto-rempli si null
     exercise_name: str
     set_index: int
     weight: Optional[float] = None

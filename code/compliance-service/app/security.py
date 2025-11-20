@@ -1,14 +1,24 @@
 # app/security.py
+import os
+from dotenv import load_dotenv
 from jose import jwt, JWTError
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-JWT_SECRET = "change-me"   # Même clé que auth-service
+load_dotenv()
+
+JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALG = "HS256"
+JWT_EXPIRE_MIN = int(os.getenv("JWT_EXPIRE_MIN", 60))
 
 auth_scheme = HTTPBearer()
 
+
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme)):
+    """
+    Vérifie et décode le token JWT.
+    Retourne un dict {user_id, role}.
+    """
     try:
         token = credentials.credentials
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
@@ -19,7 +29,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token invalide : 'sub' manquant"
+                detail="Token invalide : 'sub' manquant",
             )
 
         return {"user_id": int(user_id), "role": role}
@@ -27,5 +37,5 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token invalide ou expiré"
+            detail="Token invalide ou expiré",
         )
