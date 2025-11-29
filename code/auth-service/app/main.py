@@ -3,6 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from .models import User
 
 from .db import Base, engine, get_db
 from . import models, schemas
@@ -164,3 +165,8 @@ def delete_client(client_id: int, db: Session = Depends(get_db)):
     db.delete(client)
     db.commit()
     return {"message": "Client supprimé avec succès"}
+
+@app.get("/auth/all-users")
+def get_all_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return [{"id": u.id, "email": u.email} for u in users]

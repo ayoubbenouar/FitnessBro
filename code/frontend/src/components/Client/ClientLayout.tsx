@@ -1,4 +1,3 @@
-// src/components/Client/ClientLayout.tsx
 import type { ReactNode } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -8,7 +7,7 @@ import {
   LogOut,
   Dumbbell,
 } from "lucide-react";
-import ClientTopbar from "./ClientTopbar"; // ✅ ajout ici
+import ClientTopbar from "./ClientTopbar";
 
 export default function ClientLayout({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
@@ -27,10 +26,10 @@ export default function ClientLayout({ children }: { children?: ReactNode }) {
   }
 
   return (
-    <div className="flex bg-gray-100 min-h-screen text-gray-900">
-      {/* --- Sidebar --- */}
+    <div className="flex min-h-screen bg-gray-100 text-gray-900">
+      
+      {/* --- Sidebar sombre --- */}
       <aside className="fixed top-0 left-0 h-full w-64 bg-gray-900 border-r border-gray-800 shadow-xl flex flex-col">
-        {/* Logo */}
         <div className="flex items-center justify-center gap-3 py-6 border-b border-gray-800">
           <Dumbbell size={28} className="text-blue-500" />
           <h1 className="text-2xl font-bold text-white tracking-wide">
@@ -38,10 +37,9 @@ export default function ClientLayout({ children }: { children?: ReactNode }) {
           </h1>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-3 py-6 flex flex-col gap-2">
           <Link to="/client/dashboard" className={linkStyle("/client/dashboard")}>
-            <LayoutDashboard size={20} /> Tableau de bord
+            <LayoutDashboard size={20} /> Dashboard
           </Link>
 
           <Link to="/client/program" className={linkStyle("/client/program")}>
@@ -51,9 +49,12 @@ export default function ClientLayout({ children }: { children?: ReactNode }) {
           <Link to="/client/summary" className={linkStyle("/client/summary")}>
             <BarChart3 size={20} /> Bilan
           </Link>
+
+          <Link to="/client/profile" className={linkStyle("/client/profile")}>
+            👤 Mon profil
+          </Link>
         </nav>
 
-        {/* Déconnexion */}
         <div className="p-4 border-t border-gray-800">
           <button
             onClick={handleLogout}
@@ -65,12 +66,13 @@ export default function ClientLayout({ children }: { children?: ReactNode }) {
         </div>
       </aside>
 
-      {/* --- Main content --- */}
+      {/* --- Partie droite claire --- */}
       <div className="flex-1 flex flex-col ml-64">
-        {/* ✅ Topbar dynamique */}
+
+        {/* Topbar sombre */}
         <ClientTopbar />
 
-        {/* Contenu principal clair */}
+        {/* Contenu principal CLAIR */}
         <main className="flex-1 p-8 bg-gray-100">
           {children || <Outlet />}
         </main>

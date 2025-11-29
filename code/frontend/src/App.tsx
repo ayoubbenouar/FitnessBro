@@ -1,11 +1,15 @@
-// src/App.tsx
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
-// Auth pages
+// ==================== AUTH ====================
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 
-// Coach components & pages
+// ==================== HOME & SUBSCRIPTION FLOW ====================
+import Home from "./pages/Home";
+import CheckoutPage from "./pages/CheckoutPage";
+import MySubscription from "./pages/Coach/MySubscription";
+
+// ==================== COACH ====================
 import Layout from "./components/Layout";
 import CoachDashboard from "./pages/Coach/CoachDashboard";
 import ClientList from "./pages/Coach/ClientList";
@@ -13,87 +17,107 @@ import CreateProgram from "./pages/Coach/CreateProgram";
 import EditProgram from "./pages/Coach/EditProgram";
 import ClientProgram from "./pages/Coach/ClientProgram";
 import CoachBilan from "./pages/Coach/CoachBilan";
+import CoachClientProfile from "./pages/Coach/CoachClientProfile";
+import CoachChatbot from "./pages/Coach/CoachChatbot";
 
-// Client components & pages
+// ==================== CLIENT ====================
 import ClientLayout from "./components/Client/ClientLayout";
 import ClientDashboard from "./pages/Client/ClientHome";
 import ClientProgramFull from "./pages/Client/ClientProgram";
 import ClientReport from "./pages/Client/ClientReport";
+import ClientProfile from "./pages/Client/ClientProfile";
+import WeightHistory from "./pages/Client/WeightHistory";
 
-// Auth guard
+// ==================== GLOBAL COMPONENTS ====================
+import ChatWidget from "./components/ChatWidget/Index";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-/**
- * Configuration des routes principales de FitnessBro.
- * Sépare les espaces :
- * - Auth
- * - Coach (protégé)
- * - Client (protégé)
- */
 export default function App() {
+  const location = useLocation();
+
+  // Pages où le ChatWidget doit être masqué
+  const hideChat =
+    location.pathname.startsWith("/login") ||
+    location.pathname.startsWith("/signup") ||
+    location.pathname === "/" ||
+    location.pathname.startsWith("/subscription");
+
   return (
-    <Routes>
+    <>
+      <Routes>
+        {/* ========================= HOME ========================= */}
+        <Route path="/" element={<Home />} />
 
-      {/* =========================================
-          🔹 Authentification (public)
-      ========================================== */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
+        {/* ========================= AUTH ========================= */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
+        {/* ========================= SUBSCRIPTION PUBLIC ========================= */}
+        {/* Page après login où le coach choisit son abonnement */}
+        <Route path="/subscription" element={<CheckoutPage />} />
 
-      {/* =========================================
-          🟦 Espace Coach (protégé)
-      ========================================== */}
-      <Route
-        path="/coach"
-        element={
-          <ProtectedRoute allowedRole="coach">
-            <Layout /> {/* Layout = sidebar + header coach */}
-          </ProtectedRoute>
-        }
-      >
-        {/* Redirection par défaut */}
-        <Route index element={<Navigate to="dashboard" replace />} />
+        {/* ========================= COACH ========================= */}
+        <Route
+          path="/coach"
+          element={
+            <ProtectedRoute allowedRole="coach">
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          {/* Redirect par défaut */}
+          <Route index element={<Navigate to="dashboard" replace />} />
 
-        <Route path="dashboard" element={<CoachDashboard />} />
-        <Route path="clients" element={<ClientList />} />
-        <Route path="bilan" element={<CoachBilan />} />
+          <Route path="dashboard" element={<CoachDashboard />} />
+          <Route path="clients" element={<ClientList />} />
+          <Route path="bilan" element={<CoachBilan />} />
 
-        {/* Pages liées aux programmes */}
-        <Route path="create" element={<CreateProgram />} />
-        <Route path="edit/:id" element={<EditProgram />} />
-        <Route path="client/:id" element={<ClientProgram />} />
+          {/* Programmes */}
+          <Route path="create" element={<CreateProgram />} />
+          <Route path="edit/:id" element={<EditProgram />} />
+          <Route path="client/:id" element={<ClientProgram />} />
+          <Route path="client/:clientId/report" element={<ClientReport />} />
 
-        {/* Rapport d'un client */}
-        <Route path="client/:clientId/report" element={<ClientReport />} />
-      </Route>
+          {/* Profil client pour le coach */}
+          <Route
+            path="client/:clientId/profile"
+            element={<CoachClientProfile />}
+          />
 
+          {/* Chatbot mode page */}
+          <Route path="chatbot" element={<CoachChatbot />} />
 
-      {/* =========================================
-          🟩 Espace Client (protégé)
-      ========================================== */}
-      <Route
-        path="/client"
-        element={
-          <ProtectedRoute allowedRole="client">
-            <ClientLayout /> {/* Layout client (thème sombre gardé) */}
-          </ProtectedRoute>
-        }
-      >
-        {/* Redirection par défaut */}
-        <Route index element={<Navigate to="dashboard" replace />} />
+          {/* 🔥 Page Mon abonnement */}
+          <Route path="subscription" element={<MySubscription />} />
+        </Route>
 
-        <Route path="dashboard" element={<ClientDashboard />} />
-        <Route path="program" element={<ClientProgramFull />} />
-        <Route path="summary" element={<ClientReport />} />
-      </Route>
+        {/* ========================= CLIENT ========================= */}
+        <Route
+          path="/client"
+          element={
+            <ProtectedRoute allowedRole="client">
+              <ClientLayout />
+            </ProtectedRoute>
+          }
+        >
+          {/* Redirect par défaut */}
+          <Route index element={<Navigate to="dashboard" replace />} />
 
+          <Route path="dashboard" element={<ClientDashboard />} />
+          <Route path="program" element={<ClientProgramFull />} />
+          <Route path="summary" element={<ClientReport />} />
 
-      {/* =========================================
-          🔄 Redirections générales
-      ========================================== */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+          {/* Profil / Historique */}
+          <Route path="profile" element={<ClientProfile />} />
+          <Route path="weight-history" element={<WeightHistory />} />
+        </Route>
+
+        {/* ========================= DEFAULT REDIRECTS ========================= */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      {/* ========================= CHATWIDGET ========================= */}
+      {!hideChat && <ChatWidget />}
+    </>
   );
 }

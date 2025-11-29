@@ -29,8 +29,10 @@ export default function ClientList() {
       const res = await fetch(`http://127.0.0.1:8001/auth/clients/${coachId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       if (!res.ok) throw new Error("Erreur lors du chargement des clients");
       const data = await res.json();
+
       setClients(data);
     } catch (err) {
       console.error(err);
@@ -43,14 +45,9 @@ export default function ClientList() {
     await fetchClients();
   }
 
-  // ✅ Lorsqu’on clique sur un client
-  function handleClientClick(clientId: number) {
-    navigate(`/coach/client/${clientId}`);
-  }
-
   // 🗑️ Supprimer un client
   async function handleDeleteClient(clientId: number, event: React.MouseEvent) {
-    event.stopPropagation(); // évite de déclencher la navigation
+    event.stopPropagation(); // évite la navigation
     if (!confirm("Voulez-vous vraiment supprimer ce client ?")) return;
 
     try {
@@ -59,12 +56,10 @@ export default function ClientList() {
 
       const res = await fetch(`http://127.0.0.1:8001/auth/clients/${clientId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) throw new Error("Erreur lors de la suppression du client");
+      if (!res.ok) throw new Error("Erreur de suppression");
 
       // Mise à jour locale
       setClients((prev) => prev.filter((c) => c.id !== clientId));
@@ -105,14 +100,39 @@ export default function ClientList() {
               <tr
                 key={c.id}
                 className="border-b hover:bg-blue-50 transition cursor-pointer"
-                onClick={() => handleClientClick(c.id)}
+                onClick={() => navigate(`/coach/client/${c.id}`)}
               >
                 <td className="px-6 py-3 font-medium text-gray-700">
                   {c.email.split("@")[0]}
                 </td>
                 <td className="px-6 py-3 text-gray-600">{c.email}</td>
+
                 <td className="px-6 py-3 text-center">
                   <div className="flex justify-center gap-4">
+
+                    {/* 🔹 Voir profil */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/coach/client/${c.id}/profile`);
+                      }}
+                      className="text-blue-700 hover:underline"
+                    >
+                      Profil
+                    </button>
+
+                    {/* 🔹 Voir programme */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/coach/client/${c.id}`);
+                      }}
+                      className="text-green-700 hover:underline"
+                    >
+                      Programme →
+                    </button>
+
+                    {/* 🗑️ Supprimer */}
                     <button
                       onClick={(e) => handleDeleteClient(c.id, e)}
                       className="text-red-600 hover:text-red-800 transition"
@@ -120,9 +140,6 @@ export default function ClientList() {
                     >
                       <Trash2 size={18} />
                     </button>
-                    <span className="text-blue-600 font-medium hover:underline">
-                      Voir le programme →
-                    </span>
                   </div>
                 </td>
               </tr>
@@ -130,7 +147,10 @@ export default function ClientList() {
 
             {clients.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-6 py-4 text-center text-gray-500 italic">
+                <td
+                  colSpan={3}
+                  className="px-6 py-4 text-center text-gray-500 italic"
+                >
                   Aucun client enregistré pour ce coach.
                 </td>
               </tr>

@@ -1,4 +1,3 @@
-// src/components/Sidebar.tsx
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -10,6 +9,7 @@ import {
   Dumbbell,
   LayoutDashboard,
   FileBarChart,
+  CreditCard,
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -62,8 +62,15 @@ export default function Sidebar() {
             <Link to="/coach/clients" className={linkStyle("/coach/clients")}>
               <Users size={20} /> Liste clients
             </Link>
+
             <Link to="/coach/bilan" className={linkStyle("/coach/bilan")}>
-            <FileBarChart size={20} /> Bilan clients
+              <FileBarChart size={20} /> Bilan clients
+            </Link>
+            <Link
+              to="/coach/subscription"
+              className={linkStyle("/coach/subscription")}
+            >
+              <CreditCard size={20} /> Mon abonnement
             </Link>
           </nav>
 
