@@ -1,3 +1,4 @@
+// src/pages/Coach/ClientList.tsx
 import { useEffect, useState } from "react";
 import { UserPlus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +13,8 @@ export default function ClientList() {
   const [clients, setClients] = useState<Client[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [clientLimit, setClientLimit] = useState<number | null>(null);
+  const [isLimitReached, setIsLimitReached] = useState(false);
   const navigate = useNavigate();
 
   // 🔹 Charger les clients du coach connecté
@@ -23,17 +26,34 @@ export default function ClientList() {
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Aucun token trouvé");
+
       const decoded: any = JSON.parse(atob(token.split(".")[1]));
       const coachId = decoded.sub;
 
+      // 🔹 Charger la liste des clients
       const res = await fetch(`http://127.0.0.1:8001/auth/clients/${coachId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) throw new Error("Erreur lors du chargement des clients");
-      const data = await res.json();
+      const clientData = await res.json();
+      setClients(clientData);
 
-      setClients(data);
+      // 🔥 Charger la limite depuis PAYMENT-SERVICE
+      const subRes = await fetch(
+        "http://127.0.0.1:8007/payment/subscription/me",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        const limit = subData?.total_client_limit ?? 0;
+
+        setClientLimit(limit);
+        setIsLimitReached(clientData.length >= limit);
+      }
     } catch (err) {
       console.error(err);
       setMessage("❌ Impossible de charger les clients");
@@ -46,8 +66,12 @@ export default function ClientList() {
   }
 
   // 🗑️ Supprimer un client
-  async function handleDeleteClient(clientId: number, event: React.MouseEvent) {
+  async function handleDeleteClient(
+    clientId: number,
+    event: React.MouseEvent
+  ) {
     event.stopPropagation(); // évite la navigation
+
     if (!confirm("Voulez-vous vraiment supprimer ce client ?")) return;
 
     try {
@@ -61,9 +85,9 @@ export default function ClientList() {
 
       if (!res.ok) throw new Error("Erreur de suppression");
 
-      // Mise à jour locale
       setClients((prev) => prev.filter((c) => c.id !== clientId));
       setMessage("✅ Client supprimé avec succès !");
+      fetchClients();
     } catch (err) {
       console.error(err);
       setMessage("❌ Erreur lors de la suppression du client");
@@ -75,12 +99,21 @@ export default function ClientList() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">👥 Liste des clients</h1>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition"
-        >
-          <UserPlus size={20} /> Ajouter un client
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition"
+          >
+            <UserPlus size={20} /> Ajouter un client
+          </button>
+
+          {/* 🔥 Affichage du message limite atteinte */}
+          {isLimitReached && clientLimit !== null && (
+            <span className="text-red-600 font-semibold">
+              🔥 Limite atteinte ({clients.length}/{clientLimit})
+            </span>
+          )}
+        </div>
       </div>
 
       {message && <p className="text-blue-600 font-medium mb-4">{message}</p>}
@@ -89,9 +122,13 @@ export default function ClientList() {
         <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
           <thead className="bg-blue-600 text-white">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold">Nom du client</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold">
+                Nom du client
+              </th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
-              <th className="px-6 py-3 text-center text-sm font-semibold">Actions</th>
+              <th className="px-6 py-3 text-center text-sm font-semibold">
+                Actions
+              </th>
             </tr>
           </thead>
 
@@ -109,8 +146,6 @@ export default function ClientList() {
 
                 <td className="px-6 py-3 text-center">
                   <div className="flex justify-center gap-4">
-
-                    {/* 🔹 Voir profil */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -121,7 +156,6 @@ export default function ClientList() {
                       Profil
                     </button>
 
-                    {/* 🔹 Voir programme */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -132,7 +166,6 @@ export default function ClientList() {
                       Programme →
                     </button>
 
-                    {/* 🗑️ Supprimer */}
                     <button
                       onClick={(e) => handleDeleteClient(c.id, e)}
                       className="text-red-600 hover:text-red-800 transition"

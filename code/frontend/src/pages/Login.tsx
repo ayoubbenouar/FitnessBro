@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { Dumbbell, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Dumbbell, Loader2, CheckCircle2, AlertCircle, Home } from "lucide-react";
 
 interface DecodedToken {
   sub: string;
@@ -38,7 +38,18 @@ export default function Login() {
 
       const decoded: DecodedToken = jwtDecode(data.access_token);
 
-      // Redirection selon le rôle
+      // 🔥 Si un abonnement était en attente AVANT login
+      const pending = localStorage.getItem("pending_subscription");
+      if (pending) {
+        const p = JSON.parse(pending);
+        localStorage.removeItem("pending_subscription");
+
+        return navigate(
+          `/subscription?plan=${p.plan}&extras=${p.extras}`
+        );
+      }
+
+      // 🔥 Sinon comportement normal
       if (decoded.role === "coach") navigate("/coach/dashboard");
       else if (decoded.role === "client") navigate("/client/dashboard");
       else navigate("/login");
@@ -55,11 +66,20 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-4">
       <div className="w-full max-w-md bg-gray-950/80 backdrop-blur-md rounded-2xl p-8 shadow-xl border border-gray-800">
+
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-6">
           <Dumbbell className="text-blue-500" size={32} />
           <h1 className="text-3xl font-bold text-white">FitnessBro</h1>
         </div>
+
+        {/* Bouton retour Accueil */}
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 text-gray-300 hover:text-white mb-6 mx-auto border border-gray-700 px-4 py-2 rounded-lg hover:bg-gray-800 transition"
+        >
+          <Home size={18} /> Retour à l’accueil
+        </button>
 
         <h2 className="text-center text-lg text-gray-300 mb-6">
           Connectez-vous à votre espace

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from ..models import Subscription
 
@@ -24,6 +24,28 @@ def compute_limits(plan_name: str, extra_packs: int) -> tuple[int, int]:
     return base, total
 
 
+def _convert_ts(timestamp: int | None):
+    """Convertit un timestamp Stripe en datetime UTC, sinon None."""
+    if not timestamp:
+        return None
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+
+
+def _fallback_end_if_missing(start_dt, end_dt):
+    """
+    Stripe n'envoie parfois pas current_period_end lors du premier paiement.
+    → On utilise start + 30 jours comme fallback.
+    """
+    if end_dt is not None:
+        return end_dt
+
+    if start_dt is None:
+        return None
+
+    print("⚠️ Fallback appliqué : end = start + 30 jours")
+    return start_dt + timedelta(days=30)
+
+
 def upsert_subscription_from_checkout(
     db: Session,
     coach_id: int,
@@ -35,9 +57,16 @@ def upsert_subscription_from_checkout(
     current_period_end_ts: int | None,
 ):
     """
-    Créé ou met à jour un abonnement à partir d'une session Checkout Stripe.
+    Créé ou met à jour un abonnement (checkout ou subscription.created).
+    Intègre fallback si Stripe ne fournit pas la date de fin.
     """
     base_limit, total_limit = compute_limits(plan_name, extra_packs)
+
+    start_dt = _convert_ts(current_period_start_ts)
+    end_dt = _convert_ts(current_period_end_ts)
+
+    # Fallback si Stripe n'envoie pas end
+    end_dt = _fallback_end_if_missing(start_dt, end_dt)
 
     sub = (
         db.query(Subscription)
@@ -45,21 +74,8 @@ def upsert_subscription_from_checkout(
         .first()
     )
 
-    if current_period_start_ts:
-        current_period_start = datetime.fromtimestamp(
-            current_period_start_ts, tz=timezone.utc
-        )
-    else:
-        current_period_start = None
-
-    if current_period_end_ts:
-        current_period_end = datetime.fromtimestamp(
-            current_period_end_ts, tz=timezone.utc
-        )
-    else:
-        current_period_end = None
-
     if not sub:
+        # Création
         sub = Subscription(
             coach_id=coach_id,
             plan_name=plan_name.upper(),
@@ -69,11 +85,12 @@ def upsert_subscription_from_checkout(
             stripe_customer_id=stripe_customer_id,
             stripe_subscription_id=stripe_subscription_id,
             status="active",
-            current_period_start=current_period_start,
-            current_period_end=current_period_end,
+            current_period_start=start_dt,
+            current_period_end=end_dt,
         )
         db.add(sub)
     else:
+        # Mise à jour
         sub.plan_name = plan_name.upper()
         sub.base_client_limit = base_limit
         sub.extra_packs = extra_packs
@@ -81,8 +98,11 @@ def upsert_subscription_from_checkout(
         sub.stripe_customer_id = stripe_customer_id
         sub.stripe_subscription_id = stripe_subscription_id
         sub.status = "active"
-        sub.current_period_start = current_period_start
-        sub.current_period_end = current_period_end
+
+        if start_dt is not None:
+            sub.current_period_start = start_dt
+        if end_dt is not None:
+            sub.current_period_end = end_dt
 
     db.commit()
     db.refresh(sub)
@@ -93,8 +113,13 @@ def update_subscription_status_from_stripe(
     db: Session,
     stripe_subscription_id: str,
     status: str,
+    current_period_start_ts: int | None,
     current_period_end_ts: int | None,
 ):
+    """
+    Mise à jour du statut et des dates.
+    Fallback si end n'est pas fourni.
+    """
     sub = (
         db.query(Subscription)
         .filter(Subscription.stripe_subscription_id == stripe_subscription_id)
@@ -104,14 +129,17 @@ def update_subscription_status_from_stripe(
     if not sub:
         return None
 
+    start_dt = _convert_ts(current_period_start_ts)
+    end_dt = _convert_ts(current_period_end_ts)
+
+    end_dt = _fallback_end_if_missing(start_dt, end_dt)
+
     sub.status = status
 
-    if current_period_end_ts:
-        from datetime import datetime, timezone
-
-        sub.current_period_end = datetime.fromtimestamp(
-            current_period_end_ts, tz=timezone.utc
-        )
+    if start_dt is not None:
+        sub.current_period_start = start_dt
+    if end_dt is not None:
+        sub.current_period_end = end_dt
 
     db.commit()
     db.refresh(sub)

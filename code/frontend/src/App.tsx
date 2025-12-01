@@ -8,6 +8,9 @@ import Signup from "./pages/Signup";
 import Home from "./pages/Home";
 import CheckoutPage from "./pages/CheckoutPage";
 import MySubscription from "./pages/Coach/MySubscription";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
+
 
 // ==================== COACH ====================
 import Layout from "./components/Layout";
@@ -55,6 +58,9 @@ export default function App() {
         {/* ========================= SUBSCRIPTION PUBLIC ========================= */}
         {/* Page après login où le coach choisit son abonnement */}
         <Route path="/subscription" element={<CheckoutPage />} />
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+        <Route path="/payment/cancel" element={<PaymentCancel />} />
+
 
         {/* ========================= COACH ========================= */}
         <Route

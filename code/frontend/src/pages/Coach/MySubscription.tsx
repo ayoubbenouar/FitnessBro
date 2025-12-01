@@ -1,113 +1,147 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Calendar,
+  Users,
+  ArrowRight,
+} from "lucide-react";
 
 export default function MySubscription() {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<any>(null);
+  const [sub, setSub] = useState<any>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    fetch("http://localhost:8007/payment/subscription/me", {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setSubscription(data);
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-        alert("Erreur de connexion au service d’abonnement.");
-      });
+    fetchSubscription();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <p>Chargement...</p>
-      </div>
-    );
+  async function fetchSubscription() {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const res = await fetch("http://localhost:8007/payment/subscription/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      setSub(data);
+    } catch (err) {
+      console.error("Erreur subscription:", err);
+    }
+    setLoading(false);
   }
 
-  if (!subscription) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white p-10 text-center">
-        <h1 className="text-3xl font-bold mb-6">Mon abonnement</h1>
-        <p className="text-gray-400">Aucun abonnement actif pour le moment.</p>
-        <button
-          onClick={() => navigate("/subscription")}
-          className="mt-6 px-4 py-2 bg-blue-600 rounded hover:bg-blue-500 transition"
-        >
-          Souscrire à un abonnement
-        </button>
-      </div>
-    );
-  }
-
-  const planColors: Record<string, string> = {
-    BASIC: "text-green-400",
-    STANDARD: "text-yellow-400",
-    PREMIUM: "text-purple-400"
+  const formatDate = (iso: string | null) => {
+    if (!iso) return "—";
+    const date = new Date(iso);
+    return date.toLocaleDateString("fr-CA", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
-  return (
-    <div className="min-h-screen bg-gray-950 text-white p-10">
-      <h1 className="text-4xl font-bold mb-10">Mon abonnement</h1>
-
-      <div className="bg-gray-900 p-8 rounded-xl border border-gray-700 max-w-xl mx-auto shadow-lg">
-        <h2 className="text-2xl font-bold mb-4">
-          Plan actuel :
-          <span className={`ml-2 ${planColors[subscription.plan_name]}`}>
-            {subscription.plan_name}
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case "active":
+        return (
+          <span className="flex items-center gap-1 px-3 py-1 bg-green-100 border border-green-400 text-green-700 rounded-full text-sm">
+            <CheckCircle2 size={16} /> Actif
           </span>
-        </h2>
+        );
+      case "canceled":
+        return (
+          <span className="flex items-center gap-1 px-3 py-1 bg-red-100 border border-red-400 text-red-600 rounded-full text-sm">
+            <XCircle size={16} /> Annulé
+          </span>
+        );
+      default:
+        return (
+          <span className="px-3 py-1 bg-gray-200 border border-gray-400 rounded-full text-sm">
+            {status}
+          </span>
+        );
+    }
+  };
 
-        <div className="mb-4">
-          <p className="text-gray-300">
-            <span className="font-bold">Statut :</span>{" "}
-            <span className="capitalize">{subscription.status}</span>
-          </p>
+  if (loading)
+    return (
+      <div className="flex justify-center items-center min-h-screen text-gray-700">
+        <Loader2 size={32} className="animate-spin" />
+      </div>
+    );
 
-          <p className="text-gray-300">
-            <span className="font-bold">Début :</span>{" "}
-            {new Date(subscription.current_period_start).toLocaleDateString()}
-          </p>
+  return (
+    <div className="p-8 md:p-10 w-full">
+      {/* ===== TITRE ===== */}
+      <h1 className="text-3xl font-bold mb-8 text-gray-900">Mon abonnement</h1>
 
-          <p className="text-gray-300">
-            <span className="font-bold">Renouvellement :</span>{" "}
-            {new Date(subscription.current_period_end).toLocaleDateString()}
-          </p>
-        </div>
+      {/* ===== CONTENEUR CENTRÉ ===== */}
+      <div className="flex justify-center">
+        <div className="bg-[#0b1120] text-white rounded-xl border border-gray-700 p-8 shadow-xl w-full max-w-3xl">
+          {/* HEADER */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">
+              Plan : <span className="text-blue-400">{sub?.plan_name}</span>
+            </h2>
 
-        <div className="mb-6">
-          <p className="text-gray-300">
-            <span className="font-bold">Clients actuels :</span>{" "}
-            {subscription.current_clients} / {subscription.max_clients}
-          </p>
-        </div>
+            {statusBadge(sub?.status)}
+          </div>
 
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={() => navigate("/subscription")}
-            className="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded"
-          >
-            Modifier / Mettre à niveau
-          </button>
+          {/* GRID DATES */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            {/* Début cycle */}
+            <div className="bg-black/40 p-5 rounded-lg border border-gray-800">
+              <div className="flex items-center gap-2 text-gray-300 mb-1">
+                <Calendar size={18} />
+                Début du cycle
+              </div>
+              <p className="text-lg">{formatDate(sub?.current_period_start)}</p>
+            </div>
 
-          <button
-            className="w-full py-2 bg-gray-700 hover:bg-gray-600 rounded"
-            onClick={() => alert("Portail Stripe sera ajouté bientôt.")}
-          >
-            Gérer mon abonnement (Stripe)
-          </button>
+            {/* Fin cycle */}
+            <div className="bg-black/40 p-5 rounded-lg border border-gray-800">
+              <div className="flex items-center gap-2 text-gray-300 mb-1">
+                <Calendar size={18} />
+                Fin du cycle
+              </div>
+              <p className="text-lg">{formatDate(sub?.current_period_end)}</p>
+            </div>
+          </div>
+
+          {/* LIMITE */}
+          <div className="bg-black/40 p-5 rounded-lg border border-gray-800 mb-8">
+            <div className="flex items-center gap-2 text-gray-300 mb-1">
+              <Users size={18} />
+              Limite de clients
+            </div>
+
+            <p className="text-gray-200 text-lg">
+              {sub?.total_client_limit} clients maximum
+            </p>
+
+            {sub?.extra_packs > 0 && (
+              <p className="text-sm text-gray-400 mt-1">
+                (+ {sub.extra_packs} packs supplémentaires)
+              </p>
+            )}
+          </div>
+
+          {/* BOUTON */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                localStorage.removeItem("selected_plan");
+                window.location.href = "/";
+              }}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold text-white transition"
+            >
+              Changer de plan <ArrowRight size={18} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -26,7 +26,9 @@ export default function CoachDashboard() {
     programs: 0,
     compliance: 0,
   });
+
   const [coachName, setCoachName] = useState<string>("");
+  const [clientLimit, setClientLimit] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,16 +41,40 @@ export default function CoachDashboard() {
         const coachId = decoded?.sub;
         if (!coachId) throw new Error("Coach ID manquant");
 
-        // 🟦 Charger le nom du coach
-        const coachRes = await fetch(`http://127.0.0.1:8001/auth/user/${coachId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (coachRes.ok) {
-          const coachData = await coachRes.json();
-          if (coachData?.email) setCoachName(coachData.email.split("@")[0]);
+        // ======================================
+        // 🟨 1) Charger l’abonnement du coach
+        // ======================================
+        const subscriptionRes = await fetch(
+          "http://127.0.0.1:8007/payment/subscription/me",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (subscriptionRes.ok) {
+          const sub = await subscriptionRes.json();
+          setClientLimit(sub.total_client_limit ?? 0);
         }
 
-        // 🟩 Charger les clients et programmes
+        // ======================================
+        // 🟦 2) Charger les infos du coach
+        // ======================================
+        const coachRes = await fetch(
+          `http://127.0.0.1:8001/auth/user/${coachId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (coachRes.ok) {
+          const coachData = await coachRes.json();
+          if (coachData?.email)
+            setCoachName(coachData.email.split("@")[0]);
+        }
+
+        // ======================================
+        // 🟩 3) Charger clients + programmes + conformité
+        // ======================================
         const [clientsRes, programsRes, complianceRes] = await Promise.all([
           fetch(`http://127.0.0.1:8001/auth/clients/${coachId}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -56,9 +82,12 @@ export default function CoachDashboard() {
           fetch(`http://127.0.0.1:8002/programs/coach/${coachId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`http://127.0.0.1:8003/tracking/coach/${coachId}/clients-stats`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          fetch(
+            `http://127.0.0.1:8003/tracking/coach/${coachId}/clients-stats`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          ),
         ]);
 
         if (!clientsRes.ok || !programsRes.ok || !complianceRes.ok) {
@@ -67,13 +96,16 @@ export default function CoachDashboard() {
 
         const clients = await clientsRes.json();
         const programs = await programsRes.json();
-        const complianceData: ClientCompliance[] = await complianceRes.json();
+        const complianceData: ClientCompliance[] =
+          await complianceRes.json();
 
-        // 🧮 Calcul du taux de conformité moyen réel
+        // Conformité moyenne
         const complianceAvg =
           complianceData.length > 0
-            ? complianceData.reduce((acc, c) => acc + (c.average_compliance || 0), 0) /
-              complianceData.length
+            ? complianceData.reduce(
+                (acc, c) => acc + (c.average_compliance || 0),
+                0
+              ) / complianceData.length
             : 0;
 
         setStats({
@@ -93,18 +125,21 @@ export default function CoachDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-800 p-8">
-      {/* ✅ Titre personnalisé */}
+      {/* Titre */}
       <h1 className="text-3xl font-bold text-blue-700 mb-10">
         Bienvenue, {coachName || "Coach"} 👋
       </h1>
 
       {loading ? (
         <div className="flex justify-center items-center h-64 text-gray-500">
-          <Loader2 className="animate-spin mr-2" /> Chargement des statistiques...
+          <Loader2 className="animate-spin mr-2" /> Chargement des
+          statistiques...
         </div>
       ) : (
         <>
-          {/* --- Statistiques principales --- */}
+          {/* ========================================================= */}
+          {/*                     STATISTIQUES                         */}
+          {/* ========================================================= */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             {/* Clients */}
             <div className="bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-2xl p-6 shadow-md hover:shadow-lg transition">
@@ -114,8 +149,12 @@ export default function CoachDashboard() {
                   Clients
                 </span>
               </div>
-              <h2 className="text-4xl font-bold">{stats.clients}</h2>
-              <p className="text-blue-100 text-sm mt-1">Total inscrits</p>
+              <h2 className="text-4xl font-bold">
+                {stats.clients}/{clientLimit}
+              </h2>
+              <p className="text-blue-100 text-sm mt-1">
+                Clients utilisés / limite
+              </p>
             </div>
 
             {/* Programmes */}
@@ -127,10 +166,12 @@ export default function CoachDashboard() {
                 </span>
               </div>
               <h2 className="text-4xl font-bold">{stats.programs}</h2>
-              <p className="text-green-100 text-sm mt-1">Créés par vous</p>
+              <p className="text-green-100 text-sm mt-1">
+                Créés par vous
+              </p>
             </div>
 
-            {/* Conformité moyenne */}
+            {/* Conformité */}
             <div className="bg-gradient-to-br from-yellow-400 to-amber-500 text-white rounded-2xl p-6 shadow-md hover:shadow-lg transition">
               <div className="flex justify-between items-center mb-3">
                 <Trophy size={30} />
@@ -139,11 +180,15 @@ export default function CoachDashboard() {
                 </span>
               </div>
               <h2 className="text-4xl font-bold">{stats.compliance}%</h2>
-              <p className="text-yellow-100 text-sm mt-1">Taux de conformité moyen des clients</p>
+              <p className="text-yellow-100 text-sm mt-1">
+                Taux moyen de vos clients
+              </p>
             </div>
           </div>
 
-          {/* --- Actions rapides --- */}
+          {/* ========================================================= */}
+          {/*                     ACTIONS RAPIDES                       */}
+          {/* ========================================================= */}
           <div>
             <h2 className="text-lg font-semibold text-gray-700 mb-4">
               Actions rapides

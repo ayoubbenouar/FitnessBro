@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..security import get_current_user
 from ..db import get_db
@@ -8,6 +8,9 @@ from ..schemas import SubscriptionOut, SubscriptionLimitResponse
 router = APIRouter(prefix="/payment/subscription", tags=["Payment - Subscription"])
 
 
+# ============================
+# 🔵 1) Subscription du coach connecté
+# ============================
 @router.get("/me", response_model=SubscriptionOut)
 def get_my_subscription(
     user=Depends(get_current_user),
@@ -29,6 +32,37 @@ def get_my_subscription(
     return sub
 
 
+# ============================
+# 🔵 2) Nouvelle route requise par AUTH-SERVICE
+# ============================
+@router.get("/{coach_id}")
+def get_subscription_for_coach(
+    coach_id: int,
+    db: Session = Depends(get_db),
+):
+    sub = (
+        db.query(Subscription)
+        .filter(Subscription.coach_id == coach_id)
+        .first()
+    )
+
+    if not sub:
+        raise HTTPException(404, "Subscription not found")
+
+    return {
+        "plan_name": sub.plan_name,
+        "status": sub.status,
+        "base_client_limit": sub.base_client_limit,
+        "extra_packs": sub.extra_packs,
+        "total_client_limit": sub.total_client_limit,
+        "current_period_start": sub.current_period_start,
+        "current_period_end": sub.current_period_end,
+    }
+
+
+# ============================
+# 🔵 3) Limite avec current_clients envoyé par l’appelant
+# ============================
 @router.get("/{coach_id}/limit", response_model=SubscriptionLimitResponse)
 def get_limit(
     coach_id: int,

@@ -25,20 +25,28 @@ export default function AddClientModal({ onClose, onClientAdded }: Props) {
 
       const res = await fetch(`http://127.0.0.1:8001/auth/clients/${coachId}/add`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ email, password }),
       });
 
-      if (!res.ok) throw new Error("Erreur de création du client");
+      // 🔥 Gestion des erreurs détaillées
+      if (!res.ok) {
+        const error = await res.json().catch(() => null);
+        const detail = error?.detail || "Erreur : impossible d’ajouter le client";
+        throw new Error(detail);
+      }
 
       setMessage("✅ Client ajouté avec succès !");
       setEmail("");
       setPassword("");
       onClientAdded();
       setTimeout(onClose, 1000);
-    } catch (err) {
-      console.error(err);
-      setMessage("❌ Erreur : impossible d’ajouter le client");
+    } catch (err: any) {
+      console.error("❌ ERREUR :", err);
+      setMessage(`❌ ${err.message}`);
     } finally {
       setLoading(false);
     }
